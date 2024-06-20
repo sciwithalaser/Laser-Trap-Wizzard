@@ -33,7 +33,7 @@ The application is composed of three main files:
 
 2. Install the required Python libraries:
    ```bash
-   pip install numpy opencv-python matplotlib scipy customtkinter
+   pip install numpy opencv-python matplotlib scipy customtkinter os csv
    ```
 
 ## Usage

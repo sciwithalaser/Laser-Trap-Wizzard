@@ -7,6 +7,36 @@ import os
 
 def make_templates(frame, roi_coordinates, extend):
 
+    """
+    Generate templates and matching regions for template matching based on regions of interest (ROIs) in the given frame.
+
+    Parameters:
+    ----------
+    frame : np.ndarray
+        The image frame from which templates will be extracted.
+    roi_coordinates : list of tuples
+        A list of tuples where each tuple contains four integers (row, column, width, height)
+        representing the coordinates and size of each region of interest (ROI) in the frame.
+    extend : int
+        The number of pixels to extend the matching region beyond the boundaries of the ROI.
+
+    Returns:
+    -------
+    templates : list of np.ndarray
+        A list of templates extracted from the frame, one for each ROI. Each template is a sub-array
+        of the processed frame corresponding to the coordinates and size of the ROI.
+    matching_regions : list of tuples
+        A list of tuples where each tuple contains four integers (row, column, width, height)
+        representing the extended matching region around each ROI.
+    rightMost_ROI : int
+        The index of the ROI that is located furthest to the right in the frame, based on the column coordinate.
+
+    Notes:
+    -----
+    - The function processes the input frame using a predefined `process_image` function before extracting templates.
+    - The `extend` parameter is used to increase the size of the matching region around each ROI.
+    """
+
     # Initialize lists to contain templates and mathing regions
     templates = [[] for _ in roi_coordinates]
     matching_regions = [[] for _ in roi_coordinates]
@@ -40,6 +70,52 @@ def make_templates(frame, roi_coordinates, extend):
 
 def analyze_video(progress_info, video_directory, templates, matching_areas, ROI_coordinates, rightMost_ROI, annotatedVideos = True, saveTemplates = True, saveCCORR = True, saveAnalysisFrames = True, savePlots = True, ccorr_thresh = 0.4, dist_thresh = 2):
     
+    """
+    Analyzes a video to track bead displacements using template matching and generates various outputs including CSV files, plots, and annotated videos.
+
+    Parameters:
+    ----------
+    progress_info : dict
+        A dictionary to keep track of the analysis progress and status.
+    video_directory : str
+        The path to the video file to be analyzed.
+    templates : list of np.ndarray
+        A list of templates to be used for template matching.
+    matching_areas : list of tuples
+        A list of tuples, each containing the coordinates and dimensions of the matching areas for each template.
+    ROI_coordinates : list of tuples
+        A list of tuples, each containing the coordinates and dimensions of the regions of interest (ROIs).
+    rightMost_ROI : int
+        The index of the ROI that is located furthest to the right in the frame.
+    annotatedVideos : bool, optional
+        Whether to generate an annotated video showing the analysis results (default is True).
+    saveTemplates : bool, optional
+        Whether to save the templates as image files (default is True).
+    saveCCORR : bool, optional
+        Whether to save the cross-correlation matrices as a video (default is True).
+    saveAnalysisFrames : bool, optional
+        Whether to save the analysis frames as a video (default is True).
+    savePlots : bool, optional
+        Whether to save displacement plots as image files (default is True).
+    ccorr_thresh : float, optional
+        The correlation threshold for template matching (default is 0.4).
+    dist_thresh : float, optional
+        The distance threshold for determining bead location changes (default is 2).
+
+    Returns:
+    -------
+    None
+        The function performs analysis and generates output files but does not return any value.
+
+    Notes:
+    -----
+    - The function processes the video frame-by-frame, performing template matching to track bead displacements.
+    - Generates CSV files for bead locations and displacements.
+    - Optionally generates videos for cross-correlation matrices, analysis frames, and an annotated video showing the analysis results.
+    - Optionally saves displacement plots as image files.
+    - The progress of the analysis is tracked and updated in the `progress_info` dictionary.
+    """
+        
     # Analysis Parameters
     CCORR_THRESHOLD = ccorr_thresh              # Minimum CCORR correlation threshold 
     DIST_THRESHOLD = dist_thresh*np.sqrt(2)     # Maximum distance between new bead location and previous bead location (two diagonal pixels)
@@ -257,9 +333,54 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
 
 def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMatchLoc, template, matching_area, ccorr_threshold, dist_threshold, ccorr_out = None, analFrame_out = None):
 
+    """
+    Performs template matching on a video frame to track bead displacement and writes the correlation matrices and analysis frames to videos if specified.
+
+    Parameters:
+    ----------
+    progress_info : dict
+        A dictionary to keep track of the analysis progress and status.
+    frame : np.ndarray
+        The current video frame to be analyzed.
+    analysisFrameNumber : int
+        The number of the current frame being analyzed.
+    cap : cv2.VideoCapture
+        The video capture object to read frames from the video.
+    previousMatchLoc : tuple
+        The coordinates of the previously matched location (row, column).
+    template : np.ndarray
+        The template to be used for matching.
+    matching_area : tuple
+        A tuple containing the coordinates and dimensions of the matching area (row, column, width, height).
+    ccorr_threshold : float
+        The correlation threshold for template matching.
+    dist_threshold : float
+        The distance threshold for determining bead location changes.
+    ccorr_out : cv2.VideoWriter, optional
+        The video writer object to write the cross-correlation matrices (default is None).
+    analFrame_out : cv2.VideoWriter, optional
+        The video writer object to write the analysis frames (default is None).
+
+    Returns:
+    -------
+    bestMatchLoc : tuple
+        The coordinates of the best match location in the current frame (row, column).
+    fineLoc : tuple
+        The fine-tuned coordinates of the best match location in a finer grid.
+    timeLoc : int
+        The frame number corresponding to the middle of all summed frames.
+    currentFrameNumber : int
+        The number of the current frame after processing.
+
+    Notes:
+    -----
+    - The function processes the input frame, performs template matching, and updates the progress information.
+    - Writes the cross-correlation matrices and analysis frames to the specified video files if provided.
+    - If a good match is not found in the current frame, the function sums subsequent frames until a good match is found or a limit is reached.
     # Pre process the frame before template matching:
     analysis_frame = process_image(frame)
     currentFrameNumber = analysisFrameNumber
+    """
 
     # Create matching_area mask:
     top_left_matching_area = (matching_area[0], matching_area[1])
@@ -379,6 +500,39 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
 
 def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocations, dataFrameNumbers, ROI_coordinates, rightMost_ROI, output_video_path):
     
+    """
+    Annotates a video with bead locations and writes the annotated video to the specified output path.
+
+    Parameters:
+    ----------
+    progress_info : dict
+        A dictionary to keep track of the annotation progress and status.
+    video_directory : str
+        The path to the video file to be annotated.
+    beadLocations : list of list of tuples
+        A nested list where each sublist contains tuples of (row, column) coordinates for the bead locations in each frame.
+    fineBeadLocations : list of list of tuples
+        A nested list where each sublist contains tuples of fine-tuned (row, column) coordinates for the bead locations in each frame.
+    dataFrameNumbers : list of list of int
+        A nested list where each sublist contains frame numbers corresponding to the bead locations.
+    ROI_coordinates : list of tuples
+        A list of tuples, each containing the coordinates and dimensions of the regions of interest (ROIs).
+    rightMost_ROI : int
+        The index of the ROI that is located furthest to the right in the frame.
+    output_video_path : str
+        The path where the annotated video will be saved.
+
+    Returns:
+    -------
+    None
+        The function performs annotation and writes the output video but does not return any value.
+
+    Notes:
+    -----
+    - The function processes the video frame-by-frame, annotating each frame with bead locations if they are found.
+    - Updates the progress information during the annotation process.
+    - Saves the annotated video to the specified output path.
+    """
     # Update progress info description
     progress_info["current_task"] = f"Writing Annotated Video"
     current_task = progress_info["current_task"]
@@ -463,6 +617,29 @@ def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocati
 
 def plot_data(data, frameRate, output_path):
 
+    """
+    Plots displacement data over time and saves the plot as an image file.
+
+    Parameters:
+    ----------
+    data : list of tuples
+        A list of tuples where each tuple contains a frame number and the corresponding displacement value.
+    frameRate : float
+        The frame rate of the video, used to convert frame numbers to seconds.
+    output_path : str
+        The path where the plot image will be saved.
+
+    Returns:
+    -------
+    None
+        The function generates a plot and saves it as an image file but does not return any value.
+
+    Notes:
+    -----
+    - The function smooths the displacement data using a moving average before plotting.
+    - Converts frame numbers to seconds for the x-axis of the plot.
+
+    """
     # Extract frames and displacements for plotting
     frames = np.array([item[0] for item in data])
     displacements = np.array([item[1] for item in data])
@@ -488,6 +665,37 @@ def plot_data(data, frameRate, output_path):
 
 def annotate_frame(frame, origin_coordinates, current_coordinates, fine_coordinates, roi, rightROI):
     
+    """
+    Annotates a video frame with the origin and current bead locations.
+
+    Parameters:
+    ----------
+    frame : np.ndarray
+        The video frame to be annotated.
+    origin_coordinates : tuple
+        The (row, column) coordinates of the bead's original location.
+    current_coordinates : tuple
+        The (row, column) coordinates of the bead's current location.
+    fine_coordinates : tuple
+        The fine-tuned (row, column) coordinates of the bead's current location.
+    roi : tuple
+        A tuple containing the coordinates and dimensions of the region of interest (ROI) (row, column, width, height).
+    rightROI : bool
+        A flag indicating if this ROI is the rightmost ROI.
+
+    Returns:
+    -------
+    frame : np.ndarray
+        The annotated video frame.
+
+    Notes:
+    -----
+    - The function centers the origin and current coordinates with respect to the center of the ROI.
+    - Draws circles on the frame to indicate the original and current positions of the bead.
+    - Adds text annotations for the fine-tuned coordinates near the current position.
+    - Adjusts the position of the text annotation based on whether the ROI is the rightmost one.
+
+    """
     _, _, roi_width, roi_height = roi
 
     # Center Origin Coordinates with center of ROI
@@ -518,6 +726,30 @@ def annotate_frame(frame, origin_coordinates, current_coordinates, fine_coordina
 
 def process_image(frame):
 
+    """
+    Processes a video frame to enhance features for template matching.
+
+    Parameters:
+    ----------
+    frame : np.ndarray
+        The input video frame to be processed.
+
+    Returns:
+    -------
+    processed_frame : np.ndarray
+        The processed frame, enhanced and binarized for template matching.
+
+    Notes:
+    -----
+    The function performs the following steps:
+      1. Converts the frame to grayscale.
+      2. Applies Contrast Limited Adaptive Histogram Equalization (CLAHE) for normalization.
+      3. Denoises the image using a bilateral filter.
+      4. Applies adaptive thresholding to binarize the image.
+      5. Erodes the image to reduce noise further.
+
+    """
+
     # Create parameters for claheing
     clip_limit=20
     tile_grid_size=(4, 4)
@@ -544,6 +776,38 @@ def process_image(frame):
     return processed_frame
 
 def resample_surface(ccorr_matrix, bestMatchLoc, rangeUse=1, resIncrease=100):
+
+    """
+    Refines the location of the best match in the cross-correlation matrix using cubic interpolation.
+
+    Parameters:
+    ----------
+    ccorr_matrix : np.ndarray
+        The cross-correlation matrix obtained from template matching.
+    bestMatchLoc : tuple
+        The (row, column) coordinates of the initial best match location in the cross-correlation matrix.
+    rangeUse : int, optional
+        The number of pixels around the best match location to use for interpolation (default is 1).
+    resIncrease : int, optional
+        The factor by which to increase the resolution of the interpolation grid (default is 100).
+
+    Returns:
+    -------
+    fineLoc : tuple
+        The refined (row, column) coordinates of the best match location in the cross-correlation matrix.
+    cubic_interpolation : np.ndarray
+        The interpolated cross-correlation matrix around the best match location.
+
+    Raises:
+    ------
+    ValueError
+        If `rangeUse` is not a positive integer.
+
+    Notes:
+    -----
+    - The function extracts a sub-array around the best match location, performs cubic interpolation to refine the match location, and then transforms the interpolated coordinates back to the original cross-correlation matrix coordinate system.
+    
+    """
 
     if not isinstance(rangeUse, int) or rangeUse <= 0:
         raise ValueError("rangeUse must be a positive integer")
@@ -580,6 +844,34 @@ def resample_surface(ccorr_matrix, bestMatchLoc, rangeUse=1, resIncrease=100):
 
 def find_best_match(ccorr_matrix, previous_peak, ccorr_threshold, dist_threshold):
     
+    """
+    Finds the best match locations in the cross-correlation matrix based on a correlation threshold and distance threshold.
+
+    Parameters:
+    ----------
+    ccorr_matrix : np.ndarray
+        The cross-correlation matrix obtained from template matching.
+    previous_peak : tuple
+        The (row, column) coordinates of the previous best match location.
+    ccorr_threshold : float
+        The minimum correlation value threshold for considering a match.
+    dist_threshold : float
+        The maximum distance allowed between the previous peak and the current match location.
+
+    Returns:
+    -------
+    sorted_ccorr_loc_pairs : list of tuples
+        A list of tuples where each tuple contains a correlation value and its corresponding (row, column) location, sorted in descending order by correlation value.
+    matchIndex : int
+        The index of the best match location in the sorted list that meets the distance threshold. Returns -1 if no match is found within the distance threshold.
+
+    Notes:
+    -----
+    - The function first finds all locations in the cross-correlation matrix where the correlation value exceeds the threshold.
+    - These locations are then sorted by correlation value in descending order.
+    - The function then iteratively checks the distance of each location from the previous peak until a match within the distance threshold is found or the list is exhausted.
+    
+    """
     # Find locations where ccorr value is above the ccorr threshold
     matchLocations = np.where(ccorr_matrix >= ccorr_threshold) # tuple of arrays, where each array represents the indices along one dimension (row and column) where the condition is true
 
@@ -625,6 +917,25 @@ def find_best_match(ccorr_matrix, previous_peak, ccorr_threshold, dist_threshold
 
 def calculateDistances(location_data):
 
+    """
+    Calculates the displacement of each bead from its origin for each frame in the location data.
+
+    Parameters:
+    ----------
+    location_data : list of list of tuples
+        A nested list where each sublist contains tuples of (row, column) coordinates representing bead locations across frames.
+
+    Returns:
+    -------
+    displacementData : list of list of float
+        A nested list where each sublist contains the displacement values of the bead from its origin for each frame.
+
+    Notes:
+    -----
+    - The function calculates the Euclidean distance between each location and the origin (first location in the list).
+
+    """
+
     displacementData = [[] for _ in location_data]
     
     for i , list in enumerate(location_data):
@@ -640,6 +951,28 @@ def calculateDistances(location_data):
 
 def write_to_CSV(data, output_path):
 
+    """
+    Writes the given data to a CSV file at the specified output path.
+
+    Parameters:
+    ----------
+    data : list of tuples
+        A list of tuples where each tuple contains a frame number and either coordinates (x, y) or a displacement value.
+    output_path : str
+        The path where the CSV file will be saved.
+
+    Returns:
+    -------
+    None
+        The function writes data to a CSV file but does not return any value.
+
+    Notes:
+    -----
+    - If the second element in the tuples is a tuple, the data is assumed to be frame coordinates and the CSV will have columns for frame number, x coordinate, and y coordinate.
+    - Otherwise, the data is assumed to be displacements and the CSV will have columns for frame number and displacement.
+
+    """
+        
     # Write data into CSV
     with open(output_path, "w", newline = "") as csvfile:
         

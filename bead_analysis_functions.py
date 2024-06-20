@@ -38,13 +38,13 @@ def make_templates(frame, roi_coordinates, extend):
         
     return templates, matching_regions, rightMost_ROI
 
-def analyze_video(progress_info, video_directory, templates, matching_areas, ROI_coordinates, rightMost_ROI, annotatedVideos = True):
+def analyze_video(progress_info, video_directory, templates, matching_areas, ROI_coordinates, rightMost_ROI, annotatedVideos = True, saveTemplates = True, saveCCORR = True, saveAnalysisFrames = True, savePlots = True, ccorr_thresh = 0.4, dist_thresh = 2):
     
     # Analysis Parameters
-    CCORR_THRESHOLD = 0.4           # Minimum CCORR correlation threshold 
-    DIST_THRESHOLD = 2*np.sqrt(2)   # Maximum distance between new bead location and previous bead location (two diagonal pixels)
-    CONVERSION_FACTOR = 5.5         # Pixels per micrometer
-    
+    CCORR_THRESHOLD = ccorr_thresh              # Minimum CCORR correlation threshold 
+    DIST_THRESHOLD = dist_thresh*np.sqrt(2)     # Maximum distance between new bead location and previous bead location (two diagonal pixels)
+    CONVERSION_FACTOR = 5.5                     # Pixels per micrometer
+
     # Initializing lists to contain data
     beadLocations = [[] for _ in templates] # Pixel location of beads in each frame (one list per template)
     fineBeadLocations = [[] for _ in templates] # Pixel location of beads in each frame in ressampled grid (one list per template)
@@ -71,13 +71,32 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
         frameRate = cap.get(cv2.CAP_PROP_FPS)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
 
+        progress_info["current_total_steps"] = frame_count*len(templates)
+        progress_info["current_task"] = f"Template Matching Template {i+1} of {len(templates)}"
+        
         # Read first frame
         ret, frame_now = cap.read()
         if not ret:    
-            Error = f"Error: Unable to read first frame from video {slideID} when matching template {i}."
+            Error = f"Error: Unable to read first frame from video {slideID} when matching template {i+1}."
             progress_info["progress_description"] = Error
             return
         
+        if saveCCORR == True:
+            ccorr_video_path = output_path + "/" + file_name_without_extension + f"Bead_{i+1}_CCOR_VID.mp4" 
+            frame_height, frame_width, _ = frame_now.shape
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            ccorr_out = cv2.VideoWriter(ccorr_video_path, fourcc, frameRate, (frame_width, frame_height))
+        else:
+            ccorr_out = None
+        
+        if saveAnalysisFrames == True:
+            analysisFrames_video_path = output_path + "/" + file_name_without_extension + f"Bead_{i+1}_ANAL_VID.mp4" 
+            frame_height, frame_width, _ = frame_now.shape
+            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+            analFrame_out = cv2.VideoWriter(analysisFrames_video_path, fourcc, frameRate, (frame_width, frame_height))
+        else:
+            analFrame_out = None
+
         # Define origin coordinate
         roi = ROI_coordinates[i]
         originLoc = (roi[0], roi[1]) # (Row, Column)
@@ -90,19 +109,15 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
 
         # Loop through every Frame
         while cap.isOpened():
-
        
             # Verify that analysis was not cancelled before proceeding
             if progress_info["Analyzing"] == False:
                 progress_info["progress_description"] = "Analysis Cancelled"
-                plt.close('all')
                 return
-            
-            print(f"Analyzing frame {currentFrameNumber} of {frame_count}")
 
             # Template matching on current Frame with current template
-            matchLoc, fineLoc, timeLoc, currentFrameNumber = template_matching(
-                frame_now, currentFrameNumber, cap, matchLoc, template, matching_area, CCORR_THRESHOLD, DIST_THRESHOLD)
+            matchLoc, fineLoc, timeLoc, currentFrameNumber = template_matching(progress_info,
+                frame_now, currentFrameNumber, cap, matchLoc, template, matching_area, CCORR_THRESHOLD, DIST_THRESHOLD, ccorr_out=ccorr_out, analFrame_out=analFrame_out)
             
             # Append data to their respective data lists.
             beadLocations[i].append(matchLoc)
@@ -116,11 +131,39 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
             ret, frame_now = cap.read()
             if not ret:
                 if currentFrameNumber < frame_count:
-                    Error = f"Error: Unable to read the next frame from video {slideID} when matching template {i}."
-                    print(Error)
+                    Error = f"Error: Unable to read the next frame from video {slideID} when matching template {i+1}."
+                    progress_info["progress_description"] = Error
                 break
-                    
+
+            # Complete an analysis step each time a frame is analyzed.
+            progress_info["current_steps"] += 1
+            progress_info["completed_steps"] += 1
+
+            current_steps = progress_info["current_steps"]
+            current_total_steps = progress_info["current_total_steps"]
+            completed_steps = progress_info["completed_steps"]
+            total_steps = progress_info["total_steps"]
+            videos_count = progress_info["videos_count"]
+
+            progress_info["current_progressions"] = current_steps/current_total_steps
+            progress_info["analyzis_progression"] = completed_steps/total_steps
+
+            current_progressions = progress_info["current_progressions"]
+            analyzis_progression = progress_info["analyzis_progression"]
+            analyzed_videos = progress_info["analyzed_videos"]
+            current_task = progress_info["current_task"]
+
+            progress_info["progress_description"] = f"Analyzing Video {analyzed_videos} of {videos_count} ({current_progressions * 100:.1f}%) | Current Task: {current_task} | Total Progression: {analyzis_progression*100:.1f}%"
+
+        # Release video reader and video writers.  
         cap.release()
+        if ccorr_out is not None:
+            ccorr_out.release()
+        if analFrame_out is not None:    
+            analFrame_out.release()
+
+    # Write CSVs
+    progress_info["current_task"] = f"Saving Data into CSVs"
 
     # Write beadLocations data into CSVs
     for i, locationData in enumerate(beadLocations):
@@ -129,7 +172,7 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
         location_frame_pairs = list(zip(dataFrameNumbers[i], locationData))
 
         # Define path of the CSV file
-        csv_output_path = output_path + "/" + file_name_without_extension + f"-Bead_{i}_LOCS.csv"
+        csv_output_path = output_path + "/" + file_name_without_extension + f"-Bead_{i+1}_LOCS.csv"
 
         # Write to CSV
         write_to_CSV(location_frame_pairs, csv_output_path)
@@ -141,7 +184,7 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
         location_frame_pairs = list(zip(dataFrameNumbers[i], locationData))
 
         # Define path of the CSV file
-        csv_output_path = output_path + "/" + file_name_without_extension + f"Bead_{i}_FINELOCS.csv"
+        csv_output_path = output_path + "/" + file_name_without_extension + f"-Bead_{i+1}_FINELOCS.csv"
         
         # Write to CSV
         write_to_CSV(location_frame_pairs, csv_output_path)
@@ -159,23 +202,60 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
         displacement_frame_pairs = list(zip(dataFrameNumbers[i], displacement_data))
 
         # Define path of the CSV file
-        csv_output_path = output_path + "/" + file_name_without_extension + f"Bead_{i}_DISPS.csv"
+        csv_output_path = output_path + "/" + file_name_without_extension + f"-Bead_{i+1}_DISPS.csv"
 
         # Write to CSV
         write_to_CSV(displacement_frame_pairs, csv_output_path)
 
-        # Define path of the plot figure
-        plot_path = output_path + "/" + file_name_without_extension + f"Bead_{i}_PLOT.png"
-        plot_data(displacement_frame_pairs, frameRate, plot_path)
+        if savePlots == True:
 
+            progress_info["current_task"] = f"Plotting Data"
+
+            # Define path of individual plots
+            individual_plots_path = output_path + "/" + file_name_without_extension + f"-Bead_{i+1}_PLOT.png"
+            plot_data(displacement_frame_pairs, frameRate, individual_plots_path)
+
+            plt.figure("Joined")
+
+            # Plot joined plot
+            joined_plot_path = output_path + "/" + file_name_without_extension + f"-JOINED_PLOT.png"
+
+            frames = np.array([item[0] for item in displacement_frame_pairs])
+            displacements = np.array([item[1] for item in displacement_frame_pairs])
+
+            # Smooth out the data
+            window_size = 5
+            displacements = np.convolve(displacements, np.ones(window_size)/window_size, mode='same')
+
+            # Change frame number to seconds.
+            seconds = frames / frameRate
+
+            plt.plot(seconds, displacements, label=f"Bead {i+1}")
+    
+    if savePlots == True:
+
+        # Add labels and title
+        plt.xlabel('Time (seconds)')
+        plt.ylabel('Displacement (μm)')
+        plt.legend()
+
+        # Save the plot as a figure
+        plt.savefig(joined_plot_path)
+        plt.close('all')         
+        
     # Create annotated video if required
     if annotatedVideos == True:
-        output_video_path = output_path + "/" + file_name_without_extension + f"ANNOT_VID.mp4"
+        output_video_path = output_path + "/" + file_name_without_extension + f"-ANNOT_VID.mp4"
         annotate_video(progress_info, video_directory, beadLocations, fineBeadLocations, dataFrameNumbers, ROI_coordinates, rightMost_ROI, output_video_path)
 
-    print("ANALYSIS COMPLETED")
+    # Save templates if requested
+    if saveTemplates == True:
+        print("I just tried saving a template")
+        for i,template in enumerate(templates):
+            templatePath = output_path + "/" + file_name_without_extension + f"-Template_{i+1}.jpg"
+            cv2.imwrite(templatePath, template)
 
-def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, template, matching_area, ccorr_threshold, dist_threshold):
+def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMatchLoc, template, matching_area, ccorr_threshold, dist_threshold, ccorr_out = None, analFrame_out = None):
 
     # Pre process the frame before template matching:
     analysis_frame = process_image(frame)
@@ -193,16 +273,37 @@ def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, templat
     # Ensure that analysis frame has the same dtype as the template for proper template matching
     analysis_frame = np.array(analysis_frame, dtype=template.dtype)
 
+    if analFrame_out is not None:
+
+        # Convert to RGB for video writer
+        out_analFrame = cv2.cvtColor(analysis_frame, cv2.COLOR_GRAY2RGB)
+
+        # Write the analysis frame
+        analFrame_out.write(out_analFrame)
+
     # Perform normalized cross-correlation with respective template
     ccorr_matrix = cv2.matchTemplate(analysis_frame, template, cv2.TM_CCORR_NORMED)
+    
+    if ccorr_out is not None:
+        
+        # Normalize the correlation matrix to the range [0, 255] and convert to uint8
+        ccorr_normalized = cv2.normalize(ccorr_matrix, None, 0, 255, cv2.NORM_MINMAX)
+        ccorr_normalized = np.uint8(ccorr_normalized)
+        
+        # Resize to match the original frame size if necessary
+        if ccorr_normalized.shape != analysis_frame.shape:
+            ccorr_normalized = cv2.resize(ccorr_normalized, (analysis_frame.shape[1], analysis_frame.shape[0]))
+
+        # Convert to RGB for video writer
+        out_ccorr_matrix = cv2.cvtColor(ccorr_normalized, cv2.COLOR_GRAY2RGB)
+
+        # Write the CCORR matrix
+        ccorr_out.write(out_ccorr_matrix)
 
     # Get sorted list of ccorr_value and location pairs as well as the index in this list of the best match (based on ccorr_threshold and dist_threshold)
     sorted_ccorr_loc_pair, matchIndex = find_best_match(ccorr_matrix, previousMatchLoc, ccorr_threshold, dist_threshold)
 
     if matchIndex == -1:
-
-        print(f"Object not found in frame {currentFrameNumber}")
-        print("Initializing summator")
         
         # Initialize summator
         summator = analysis_frame.copy()
@@ -212,8 +313,6 @@ def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, templat
             
             # If a whole second was summed and a good match was not found, reset the summator and reassingn analysis frame number.
             if summedFrames > 30:
-                print("Max number of frames summed reached")
-                print("Re-initializing summator")
                 summator = next_frame.copy()
                 summedFrames = 1
                 analysisFrameNumber = currentFrameNumber
@@ -221,8 +320,29 @@ def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, templat
             # Read the next frame
             ret, frame = cap.read()
             if not ret:
-                print("Could not read frame")
+                Error = f"Error reading frame {currentFrameNumber} when adding it to the summator"
+                progress_info["progress_description"] = Error
                 return
+            
+            # Complete an analysis step each time a frame is analyzed.
+            progress_info["current_steps"] += 1
+            progress_info["completed_steps"] += 1
+
+            current_steps = progress_info["current_steps"]
+            current_total_steps = progress_info["current_total_steps"]
+            completed_steps = progress_info["completed_steps"]
+            total_steps = progress_info["total_steps"]
+            videos_count = progress_info["videos_count"]
+
+            progress_info["current_progressions"] = current_steps/current_total_steps
+            progress_info["analyzis_progression"] = completed_steps/total_steps
+
+            current_progressions = progress_info["current_progressions"]
+            analyzis_progression = progress_info["analyzis_progression"]
+            analyzed_videos = progress_info["analyzed_videos"]
+            current_task = progress_info["current_task"]
+
+            progress_info["progress_description"] = f"Analyzing Video {analyzed_videos} of {videos_count} ({current_progressions * 100:.1f}%) | Current Task: {current_task} | Total Progression: {analyzis_progression*100:.1f}%"
             
             # Update current frame number
             currentFrameNumber += 1
@@ -234,7 +354,6 @@ def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, templat
             # Sum next frame to summator and update summedFrames.
             summator = summator + next_frame
             summedFrames += 1
-            print(f"{summedFrames} frames summed")
 
             # Mask summator for template matching
             summator = summator * mask
@@ -251,7 +370,6 @@ def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, templat
 
     # Extract fine location in finer grid
     fineLoc, _ = resample_surface(ccorr_matrix, bestMatchLoc)
-    print(f"The fineLoc is {fineLoc}")
 
     # Assigned location data to the middle frame of all summed frames
     timeLoc = int((analysisFrameNumber + currentFrameNumber)/2)
@@ -260,9 +378,11 @@ def template_matching(frame, analysisFrameNumber, cap, previousMatchLoc, templat
     return bestMatchLoc, fineLoc, timeLoc, currentFrameNumber
 
 def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocations, dataFrameNumbers, ROI_coordinates, rightMost_ROI, output_video_path):
-
-    print(f"Annotating Video")
-
+    
+    # Update progress info description
+    progress_info["current_task"] = f"Writing Annotated Video"
+    current_task = progress_info["current_task"]
+        
     # Extract origin coordinates
     origin_coordinates = [locationsList[0] for locationsList in beadLocations]
 
@@ -297,8 +417,6 @@ def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocati
         # Keep track of the frame read
         current_frame += 1
 
-        print(f"Annotating Frame {current_frame} of {frame_count}")
-
         # Copy original frame for annotation
         annotated_frame = np.copy(frame)
 
@@ -314,12 +432,30 @@ def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocati
         # Write annotated frame (frames where no templates were found will have no marks)
         out.write(annotated_frame)
 
+        # Complete an analysis step each time a frame is analyzed.
+        progress_info["completed_steps"] += 1
+
+        current_steps = progress_info["current_steps"]
+        current_total_steps = progress_info["current_total_steps"]
+        completed_steps = progress_info["completed_steps"]
+        total_steps = progress_info["total_steps"]
+        videos_count = progress_info["videos_count"]
+
+        progress_info["analyzis_progression"] = completed_steps/total_steps
+
+        current_progressions = progress_info["current_progressions"]
+        analyzis_progression = progress_info["analyzis_progression"]
+        analyzed_videos = progress_info["analyzed_videos"]
+        current_task = progress_info["current_task"]
+
+        progress_info["progress_description"] = f"Annotating Video {analyzed_videos} of {videos_count} | Current Task: {current_task} | Total Progression: {analyzis_progression*100:.1f}%"
+
         # Read the next frame
         ret, frame = cap.read()
         if not ret:
             if current_frame < frame_count:
                 Error = f"Error: Unable to read the next frame when annotating the video"
-                print(Error)
+                progress_info["progress_description"] = Error
             break
     
     # Release VideoWriter object.
@@ -330,6 +466,10 @@ def plot_data(data, frameRate, output_path):
     # Extract frames and displacements for plotting
     frames = np.array([item[0] for item in data])
     displacements = np.array([item[1] for item in data])
+
+    # Smooth out the data
+    window_size = 5
+    displacements = np.convolve(displacements, np.ones(window_size)/window_size, mode='same')
 
     # Convert frames data to seconds
     seconds = frames / frameRate
@@ -345,7 +485,6 @@ def plot_data(data, frameRate, output_path):
 
     # Save the plot as a figure
     plt.savefig(output_path)
-    plt.close('all')
 
 def annotate_frame(frame, origin_coordinates, current_coordinates, fine_coordinates, roi, rightROI):
     

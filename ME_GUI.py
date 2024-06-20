@@ -2,18 +2,18 @@ import customtkinter
 import callback_functions as ff
 
 progress_info = {
-    "analysis_button_pressed": True,
-    "Analyzing":False, 
-    "videos_count": 0, 
-    "total_steps": 0, 
-    "analyzed_videos":0, 
-    "completed_steps": 0, 
-    "current_steps": 0,
-    "current_total_steps":0, 
-    "current_progressions":0, 
-    "analyzis_progression": 0,
-    "current_task":"",
-    "progress_description": ""
+    "analysis_button_pressed": True, # Did the analysis button get pressed?
+    "Analyzing":False,               # Is the analysis currently running (turns off if analysis button is pressed)
+    "videos_count": 0,               # How many videos are being analyzed?
+    "total_steps": 0,                # Total analysis steps with all of the videos counted
+    "analyzed_videos":0,             # Number of videos that were analysed
+    "completed_steps": 0,            # Number of steps that were completed
+    "current_steps": 0,              # Number of compelted analysis steps in the video currently being analyzed
+    "current_total_steps":0,         # Total number of steps in the analysis of the current video
+    "current_progressions":0,        # Progression of the analysis of the video currently being analysed
+    "analyzis_progression": 0,       # Progresison of the total analysis
+    "current_task":"",               # Description of the task currently being performed
+    "progress_description": ""       # Description of the total progress in the analysis
     }
 
 class MainApp(customtkinter.CTk):

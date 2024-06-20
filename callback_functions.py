@@ -57,27 +57,6 @@ def select_videos(caller, progress_info):
     caller.selected_ROI = None
     
     if caller.video_directories:
-
-        # Count total number of frames for progress tracking
-        total_frames = 0
-        for directory in caller.video_directories:
-            cap = cv2.VideoCapture(directory)
-            if not cap.isOpened():
-                error_prompt = "Could not read videos when setting up variables for progress track"
-                messagebox.showwarning(title = "WARNING", message=error_prompt)
-                continue
-    
-            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            total_frames += frame_count
-            cap.release()
-        
-        if caller.master.annotated_videos == True:
-            steps = total_frames*6 # If annotated videos, include steps for writing frames twice + steps for writing CSV data
-        else:
-            steps = total_frames*2 # Only include extra steps for writing CSV data.
-        
-        progress_info["total_steps"] = steps
-        progress_info["videos_count"] = len(caller.video_directories)
         
         caller.rois = {video_dir: [] for video_dir in caller.video_directories}
         
@@ -335,7 +314,6 @@ def increaseButton_callback(master, parameter_name, display):
 
     check_buttons_state(master.video_analysis_frame)
 
-
 def decreaseButton_callback(master, parameter_name, display):
 
     if parameter_name == "ccorr_threshold":
@@ -346,8 +324,6 @@ def decreaseButton_callback(master, parameter_name, display):
         display.configure(text=f"{getattr(master, parameter_name)}")
 
     check_buttons_state(master.video_analysis_frame)
-
-
 
 def watermark_callback(url):
 
@@ -437,18 +413,40 @@ def analyzis_button_callback(caller, progress_info):
             saveCCORR = caller.saveCCORR
             saveAnalysisFrames = caller.saveAnalysisFrames
             savePlots =  caller.savePlots
+            ccorr_thresh = caller.ccorr_threshold
+            dist_thresh = caller.dist_threshold
 
             # Start analysis on a separate thread so that GUI can continue being updated
-            analysis_thread = threading.Thread(target=analyze, args=(video_directories, templates, matching_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, progress_info))
+            analysis_thread = threading.Thread(target=analyze, args=(video_directories, templates, matching_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info))
             analysis_thread.start()
     else:
         progress_info["Analyzing"] = False
         progress_info["progress_description"] = "Analysis Cancelled"
 
-def analyze(video_directories, templates, mathcing_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, progress_info):
+def analyze(video_directories, templates, mathcing_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info):
 
     # Analyze one video at a time
     for video_directory in video_directories:
+        
+        # Count total number of frames for progress tracking
+        total_steps = 0
+        for directory in video_directories:
+
+            cap = cv2.VideoCapture(directory)
+            if not cap.isOpened():
+                error_prompt = "Could not read videos when setting up variables for progress track"
+                messagebox.showwarning(title = "WARNING", message=error_prompt)
+                continue
+            
+            template_counts = len(templates[directory])
+            frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            total_steps += frame_count * template_counts
+            if annotatedVideos == True:
+                total_steps += frame_count
+            cap.release()
+        
+        progress_info["total_steps"] = total_steps
+        progress_info["videos_count"] = len(video_directories)
 
         # Verify if cancel button was not pressed before continuing
         if progress_info["Analyzing"] == True:
@@ -463,13 +461,13 @@ def analyze(video_directories, templates, mathcing_areas, roi_coordinates, right
             current_ROI_coordinates = roi_coordinates[video_directory]
             current_rightMostROI = rightMostROIs[video_directory]
 
-            ba.analyze_video(progress_info, video_directory, currentTemplates, currentMatchingAreas, current_ROI_coordinates, current_rightMostROI, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots)
+            ba.analyze_video(progress_info, video_directory, currentTemplates, currentMatchingAreas, current_ROI_coordinates, current_rightMostROI, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh)
         
         else:
-            progress_info["progress_description"] = "Analysis Cancelled"
+            progress_info["progress_description"] = "Analysis CANCELLED"
             return
     
-    progress_info["progress_description"] = "Analysis Completed"
+    progress_info["progress_description"] = "Analysis COMPLETED"
     progress_info["Analyzing"] = False
 
 def annotatedVideos_callback(caller):
@@ -482,9 +480,11 @@ def annotatedVideos_callback(caller):
 def saveTemplates_callback(caller):
 
     if caller.saveTemplates.get() == 1:
-        caller.master.saveTempaltes = True
+        caller.master.saveTemplates = True
     else:
         caller.master.saveTemplates = False
+
+    print(f"The save template option is set to {caller.master.saveTemplates}")
 
 def saveCCORR_callback(caller):
 

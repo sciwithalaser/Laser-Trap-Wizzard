@@ -192,9 +192,23 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
                 return
 
             # Template matching on current Frame with current template
-            matchLoc, fineLoc, timeLoc, currentFrameNumber = template_matching(progress_info,
+            matchLoc, fineLoc, timeLoc, currentFrameNumber, feedback = template_matching(progress_info,
                 frame_now, currentFrameNumber, cap, matchLoc, template, matching_area, CCORR_THRESHOLD, DIST_THRESHOLD, ccorr_out=ccorr_out, analFrame_out=analFrame_out)
             
+            if feedback != 0:
+                error_log_path = output_path + "/" + file_name_without_extension + f"-ERROR.txt"
+                
+                with open(error_log_path, 'a') as log_file:
+                    log_file.write(feedback)
+
+                cap.release()
+                if ccorr_out is not None:
+                    ccorr_out.release()
+                if analFrame_out is not None:    
+                    analFrame_out.release()
+                
+                return
+
             # Append data to their respective data lists.
             beadLocations[i].append(matchLoc)
             fineBeadLocations[i].append(fineLoc)
@@ -377,11 +391,14 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
     - The function processes the input frame, performs template matching, and updates the progress information.
     - Writes the cross-correlation matrices and analysis frames to the specified video files if provided.
     - If a good match is not found in the current frame, the function sums subsequent frames until a good match is found or a limit is reached.
+    """
+   
     # Pre process the frame before template matching:
     analysis_frame = process_image(frame)
     currentFrameNumber = analysisFrameNumber
-    """
 
+    frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+    
     # Create matching_area mask:
     top_left_matching_area = (matching_area[0], matching_area[1])
     bottom_right_matching_area = (matching_area[0] + matching_area[3],  matching_area[1] + matching_area[2])
@@ -441,9 +458,13 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
             # Read the next frame
             ret, frame = cap.read()
             if not ret:
-                Error = f"Error reading frame {currentFrameNumber} when adding it to the summator"
-                progress_info["progress_description"] = Error
-                return
+                if currentFrameNumber < frame_count:
+                    Error = f"Error reading frame {currentFrameNumber} when adding it to the summator"
+                    progress_info["progress_description"] = Error
+                    return 0, 0, 0, Error
+                else:
+                    timeLoc = int((analysisFrameNumber + currentFrameNumber)/2)
+                    return previousMatchLoc, previousMatchLoc, timeLoc, currentFrameNumber, 0
             
             # Complete an analysis step each time a frame is analyzed.
             progress_info["current_steps"] += 1
@@ -495,8 +516,8 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
     # Assigned location data to the middle frame of all summed frames
     timeLoc = int((analysisFrameNumber + currentFrameNumber)/2)
     
-    # Retunr the best match location and the fine best-match-loation as coordinates in the frame, return last frame that was read. 
-    return bestMatchLoc, fineLoc, timeLoc, currentFrameNumber
+    # Return the best match location and the fine best-match-loation as coordinates in the frame, return last frame that was read. 
+    return bestMatchLoc, fineLoc, timeLoc, currentFrameNumber, 0
 
 def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocations, dataFrameNumbers, ROI_coordinates, rightMost_ROI, output_video_path):
     
@@ -589,8 +610,6 @@ def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocati
         # Complete an analysis step each time a frame is analyzed.
         progress_info["completed_steps"] += 1
 
-        current_steps = progress_info["current_steps"]
-        current_total_steps = progress_info["current_total_steps"]
         completed_steps = progress_info["completed_steps"]
         total_steps = progress_info["total_steps"]
         videos_count = progress_info["videos_count"]

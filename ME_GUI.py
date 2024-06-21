@@ -302,9 +302,9 @@ class video_analysis_frame(customtkinter.CTkFrame):
         self.select_videos_button.grid(row=4, column=0, columnspan = 2, padx=15, pady=(10,5), sticky="ew")
 
         # Selected Videos Navigation Buttons
-        self.previous_button = customtkinter.CTkButton(self, text="Previous Video", fg_color="#78716C", hover_color="#A8A29E", command= lambda: ff.previous_video(self))
+        self.previous_button = customtkinter.CTkButton(self, text="Previous Video", fg_color="#78716C", hover_color="#A8A29E", command= lambda: ff.previous_video(self, progress_info))
         self.previous_button.grid(row=5, column=0,  padx=(15, 0), pady=(3,20), sticky="ew") 
-        self.next_button = customtkinter.CTkButton(self, text="Next Video", fg_color="#78716C", hover_color="#A8A29E", command= lambda: ff.next_video(self))
+        self.next_button = customtkinter.CTkButton(self, text="Next Video", fg_color="#78716C", hover_color="#A8A29E", command= lambda: ff.next_video(self, progress_info))
         self.next_button.grid(row=5, column=1, padx=(5, 15), pady=(3, 20), sticky="ew") 
 
 if __name__=="__main__":

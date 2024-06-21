@@ -154,7 +154,19 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
         ret, frame_now = cap.read()
         if not ret:    
             Error = f"Error: Unable to read first frame from video {slideID} when matching template {i+1}."
-            progress_info["progress_description"] = Error
+            
+            # Output an error to the current video analysis folder.
+            error_log_path = output_path + "/" + file_name_without_extension + "ANALYSIS ERROR"  
+            with open(error_log_path, 'a') as log_file:
+                log_file.write(Error)
+            
+            # Release video writers and video reader
+            cap.release()
+            if ccorr_out is not None:
+                ccorr_out.release()
+            if analFrame_out is not None:    
+                analFrame_out.release()
+
             return
         
         if saveCCORR == True:
@@ -189,6 +201,14 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
             # Verify that analysis was not cancelled before proceeding
             if progress_info["Analyzing"] == False:
                 progress_info["progress_description"] = "Analysis Cancelled"
+                
+                # Release video reader and video writers
+                cap.release()
+                if ccorr_out is not None:
+                    ccorr_out.release()
+                if analFrame_out is not None:    
+                    analFrame_out.release()
+
                 return
 
             # Template matching on current Frame with current template
@@ -221,8 +241,20 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
             ret, frame_now = cap.read()
             if not ret:
                 if currentFrameNumber < frame_count:
-                    Error = f"Error: Unable to read the next frame from video {slideID} when matching template {i+1}."
-                    progress_info["progress_description"] = Error
+                    Error = f"Error: Unable to read frame {currentFrameNumber} from video {slideID} when matching template {i+1}."
+                    
+                    # Output an error to the current video analysis folder.
+                    error_log_path = output_path + "/" + file_name_without_extension + "ANALYSIS ERROR"  
+                    with open(error_log_path, 'a') as log_file:
+                        log_file.write(Error)
+                    
+                    # Release video writers and video reader
+                    cap.release()
+                    if ccorr_out is not None:
+                        ccorr_out.release()
+                    if analFrame_out is not None:    
+                        analFrame_out.release()
+                
                 break
 
             # Complete an analysis step each time a frame is analyzed.
@@ -627,8 +659,17 @@ def annotate_video(progress_info, video_directory, beadLocations, fineBeadLocati
         ret, frame = cap.read()
         if not ret:
             if current_frame < frame_count:
-                Error = f"Error: Unable to read the next frame when annotating the video"
-                progress_info["progress_description"] = Error
+                Error = f"Error: Unable to read frame {current_frame} when annotating the video"
+                
+                # Output an error to the current video analysis folder.
+                error_log_path = output_video_path + "ERROR"  
+                with open(error_log_path, 'a') as log_file:
+                    log_file.write(Error)
+                
+                # Release video reader and video writer.
+                cap.release()
+                out.release()
+
             break
     
     # Release VideoWriter object.

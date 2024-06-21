@@ -7,6 +7,7 @@ import numpy as np
 import webbrowser
 import threading
 import copy
+import os
 
 def fineAdjust(caller, com = "None", stepSize = 1, dimStepSize = 1):
 
@@ -62,9 +63,9 @@ def select_videos(caller, progress_info):
         
         # Load the first video in the video_directories list
         caller.current_video_index = 0
-        load_video(caller)
+        load_video(caller, progress_info)
     
-def load_video(caller):
+def load_video(caller, progress_info):
 
     # Extract directory of video that is being loaded
     video_directory = caller.video_directories[caller.current_video_index]
@@ -86,7 +87,29 @@ def load_video(caller):
         # Update navigtion buttons according to current video index
         check_buttons_state(caller)
     else:
-        caller.video_display.configure(text = f"Error, Unable to read the first frame of the video {video_directory}.")
+        
+        # Update progress description so the user can know that a video was not read
+        file_name_without_extension = os.path.splitext(os.path.basename(video_directory))[0]
+        progress_info["progress_description"] = f"Error, Unable to read the first frame of the video {file_name_without_extension}."
+        caller.master.progress_description.configure(text=progress_info["progress_description"])
+        feedback = f"Unable to read the first frame when preparing templates"
+
+        # Remove the video that could not be read element
+        temp_list = list(caller.video_directories) # Transform tuple temporarily into a list to do thre removal (can't do it directly on a tuple)
+        temp_list.pop(caller.current_video_index)
+        caller.video_directories = tuple(temp_list)
+
+        # Remove ROI holder from the video that could not be read
+        _ = caller.rois.pop(video_directory)
+
+        # Output an error to the current video analysis folder.
+        error_log_path = video_directory + f"-ERROR.txt"       
+        with open(error_log_path, 'a') as log_file:
+            log_file.write(feedback)
+
+        # Read the next video instead
+        caller.current_video_index += 1
+        load_video(caller, progress_info)
 
 def update_displayed_frame(caller):
 
@@ -280,7 +303,7 @@ def check_buttons_state(caller):
     if caller.master.manual_ROI_dim == 1:
         caller.master.settings.manual_ROI_dim_decrease.configure(state="disabled")
         
-def next_video(caller):
+def next_video(caller, progress_info):
 
     # Increases current_video_index by one if not the last video
     if caller.current_video_index < len(caller.video_directories) - 1:
@@ -289,9 +312,9 @@ def next_video(caller):
         caller.selected_ROI = None
 
         # Load video with the new current_video_index
-        load_video(caller)
+        load_video(caller, progress_info)
 
-def previous_video(caller):
+def previous_video(caller, progress_info):
 
     # Increases current_video_index by one if not the last video
     if caller.current_video_index > 0:
@@ -300,7 +323,7 @@ def previous_video(caller):
         caller.selected_ROI = None
 
         # Load video with the new current_video_index
-        load_video(caller)
+        load_video(caller, progress_info)
 
 def increaseButton_callback(master, parameter_name, display):
     

@@ -105,12 +105,16 @@ def load_video(caller, progress_info):
         # Output an error to the current video analysis folder.
         file_name_without_extension = os.path.splitext(os.path.basename(video_directory))[0]
         slideID = file_name_without_extension.split("-", 1)[0]
-        error_log_path = os.path.dirname(video_directory) + "/" + slideID + "-ANALYSIS"       
+        error_log_dir = os.path.dirname(video_directory) + "/" + slideID + "-ANALYSIS/"
+        os.makedirs(error_log_dir, exist_ok=True)  # Create the directory if it doesn't exist
+        error_log_path = os.path.join(error_log_dir, file_name_without_extension + "-ERROR.txt")  
         with open(error_log_path, 'a') as log_file:
             log_file.write(feedback)
 
+        while caller.current_video_index > len(caller.rois) - 1:
+            caller.current_video_index -= 1
+
         # Read the next video instead
-        caller.current_video_index += 1
         load_video(caller, progress_info)
 
 def update_displayed_frame(caller):

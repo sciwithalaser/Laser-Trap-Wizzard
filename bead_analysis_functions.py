@@ -5,7 +5,7 @@ import csv
 from scipy.interpolate import griddata
 import os
 
-def make_templates(frame, roi_coordinates, extend):
+def make_templates(frame, roi_coordinates, extend, erode):
 
     """
     Generate templates and matching regions for template matching based on regions of interest (ROIs) in the given frame.
@@ -61,14 +61,14 @@ def make_templates(frame, roi_coordinates, extend):
         matching_regions[i] = (matchingRegion_row, matchingRegion_column, matchingRegion_width, matchingRegion_height)
         
         # Process frame for template extraction
-        processed_frame = process_image(frame)
+        processed_frame = process_image(frame, erode)
         
         # Template extraction:
         templates[i] = processed_frame[roi_row : roi_row + roi_height, roi_column : roi_column + roi_width]
         
     return templates, matching_regions, rightMost_ROI
 
-def analyze_video(progress_info, video_directory, templates, matching_areas, ROI_coordinates, rightMost_ROI, annotatedVideos = True, saveTemplates = True, saveCCORR = True, saveAnalysisFrames = True, savePlots = True, ccorr_thresh = 0.4, dist_thresh = 2):
+def analyze_video(progress_info, video_directory, templates, matching_areas, ROI_coordinates, rightMost_ROI, annotatedVideos = True, saveTemplates = True, saveCCORR = True, saveAnalysisFrames = True, savePlots = True, ccorr_thresh = 0.4, dist_thresh = 2, erode = True):
     
     """
     Analyzes a video to track bead displacements using template matching and generates various outputs including CSV files, plots, and annotated videos.
@@ -213,7 +213,7 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
 
             # Template matching on current Frame with current template
             matchLoc, fineLoc, timeLoc, currentFrameNumber, feedback = template_matching(progress_info,
-                frame_now, currentFrameNumber, cap, matchLoc, template, matching_area, CCORR_THRESHOLD, DIST_THRESHOLD, ccorr_out=ccorr_out, analFrame_out=analFrame_out)
+                frame_now, currentFrameNumber, cap, matchLoc, template, matching_area, CCORR_THRESHOLD, DIST_THRESHOLD, ccorr_out=ccorr_out, analFrame_out=analFrame_out, erode=erode)
             
             if feedback != 0:
                 error_log_path = output_path + "/" + file_name_without_extension + f"-ERROR.txt"
@@ -377,7 +377,7 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
             templatePath = output_path + "/" + file_name_without_extension + f"-Template_{i+1}.jpg"
             cv2.imwrite(templatePath, template)
 
-def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMatchLoc, template, matching_area, ccorr_threshold, dist_threshold, ccorr_out = None, analFrame_out = None):
+def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMatchLoc, template, matching_area, ccorr_threshold, dist_threshold, ccorr_out = None, analFrame_out = None, erode = True):
 
     """
     Performs template matching on a video frame to track bead displacement and writes the correlation matrices and analysis frames to videos if specified.
@@ -426,7 +426,7 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
     """
    
     # Pre process the frame before template matching:
-    analysis_frame = process_image(frame)
+    analysis_frame = process_image(frame, erode)
     currentFrameNumber = analysisFrameNumber
 
     frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
@@ -522,7 +522,7 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
             currentFrameNumber += 1
             
             # Process next frame
-            next_frame = process_image(frame)
+            next_frame = process_image(frame, erode)
             next_frame = np.array(next_frame, dtype=template.dtype)
             
             # Sum next frame to summator and update summedFrames.
@@ -784,7 +784,7 @@ def annotate_frame(frame, origin_coordinates, current_coordinates, fine_coordina
 
     return frame
 
-def process_image(frame):
+def process_image(frame, erode):
 
     """
     Processes a video frame to enhance features for template matching.
@@ -829,9 +829,10 @@ def process_image(frame):
     # Threshold the frame
     processed_frame = cv2.adaptiveThreshold(processed_frame, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, cv2.THRESH_BINARY_INV, 7, 8)
 
-    # Erode the frame (further decfease the noise)
-    kernel = np.ones((2, 2), np.uint8) 
-    processed_frame = cv2.erode(processed_frame, kernel)
+    if erode == True:
+        # Erode the frame (further decfease the noise)
+        kernel = np.ones((2,2), np.uint8) 
+        processed_frame = cv2.erode(processed_frame, kernel)
 
     return processed_frame
 

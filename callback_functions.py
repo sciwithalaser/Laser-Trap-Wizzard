@@ -103,7 +103,9 @@ def load_video(caller, progress_info):
         _ = caller.rois.pop(video_directory)
 
         # Output an error to the current video analysis folder.
-        error_log_path = video_directory + f"-ERROR.txt"       
+        file_name_without_extension = os.path.splitext(os.path.basename(video_directory))[0]
+        slideID = file_name_without_extension.split("-", 1)[0]
+        error_log_path = os.path.dirname(video_directory) + "/" + slideID + "-ANALYSIS"       
         with open(error_log_path, 'a') as log_file:
             log_file.write(feedback)
 
@@ -122,7 +124,7 @@ def update_displayed_frame(caller):
     if len(caller.rois[video_directory]) == 2:
         
         # Extract templates based on selected ROIs
-        templates, matching_areas, rightMost_ROI = ba.make_templates(frame, caller.rois[video_directory], caller.master.extend)
+        templates, matching_areas, rightMost_ROI = ba.make_templates(frame, caller.rois[video_directory], caller.master.extend, caller.master.erode)
         caller.templates[video_directory] = templates
         caller.matching_areas[video_directory] = matching_areas
         caller.rightMostROIs[video_directory] = rightMost_ROI
@@ -148,7 +150,7 @@ def update_displayed_frame(caller):
         # If a single ROI is selected, display the template in one of the template displays
         if len(caller.rois[video_directory]) == 1:
 
-            templates, matching_areas, rightMost_ROI = ba.make_templates(frame, caller.rois[video_directory], caller.master.extend)
+            templates, matching_areas, rightMost_ROI = ba.make_templates(frame, caller.rois[video_directory], caller.master.extend, caller.master.erode)
             caller.templates[video_directory] = templates
             caller.matching_areas[video_directory] = matching_areas
             caller.rightMostROIs[video_directory] = rightMost_ROI
@@ -438,15 +440,16 @@ def analyzis_button_callback(caller, progress_info):
             savePlots =  caller.savePlots
             ccorr_thresh = caller.ccorr_threshold
             dist_thresh = caller.dist_threshold
+            erode = caller.erode
 
             # Start analysis on a separate thread so that GUI can continue being updated
-            analysis_thread = threading.Thread(target=analyze, args=(video_directories, templates, matching_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info))
+            analysis_thread = threading.Thread(target=analyze, args=(video_directories, templates, matching_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info, erode))
             analysis_thread.start()
     else:
         progress_info["Analyzing"] = False
         progress_info["progress_description"] = "Analysis Cancelled"
 
-def analyze(video_directories, templates, mathcing_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info):
+def analyze(video_directories, templates, mathcing_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info, erode):
 
     # Analyze one video at a time
     for video_directory in video_directories:
@@ -484,7 +487,7 @@ def analyze(video_directories, templates, mathcing_areas, roi_coordinates, right
             current_ROI_coordinates = roi_coordinates[video_directory]
             current_rightMostROI = rightMostROIs[video_directory]
 
-            ba.analyze_video(progress_info, video_directory, currentTemplates, currentMatchingAreas, current_ROI_coordinates, current_rightMostROI, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh)
+            ba.analyze_video(progress_info, video_directory, currentTemplates, currentMatchingAreas, current_ROI_coordinates, current_rightMostROI, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, erode)
         
         else:
             progress_info["progress_description"] = "Analysis CANCELLED"
@@ -507,7 +510,15 @@ def saveTemplates_callback(caller):
     else:
         caller.master.saveTemplates = False
 
-    print(f"The save template option is set to {caller.master.saveTemplates}")
+def erodeOption_callback(caller):
+
+    if caller.erode.get() == 1:
+        caller.master.erode = True
+    else:
+        caller.master.erode = False
+
+    update_displayed_frame(caller.master.video_analysis_frame)
+
 
 def saveCCORR_callback(caller):
 

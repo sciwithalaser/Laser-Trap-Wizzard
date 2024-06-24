@@ -34,12 +34,13 @@ class MainApp(customtkinter.CTk):
         self.extend = 10
         self.ccorr_threshold = 0.4
         self.dist_threshold = 2
-        self.manual_ROI_dim = 23
+        self.manual_ROI_dim = 19
         self.annotated_videos = True
         self.saveTemplates = False
         self.saveCCORR = False
         self.saveAnalysisFrames = False
         self.savePlots = True
+        self.erode = True
 
         #Thinking icon
         self.thinking_icon = ["|", "/", "-", "\\"]
@@ -155,7 +156,7 @@ class MainApp(customtkinter.CTk):
 class settings_frame(customtkinter.CTkFrame):
     def __init__(self, master):
         super().__init__(master)
-        self.grid_rowconfigure(16, weight=1)
+        self.grid_rowconfigure(17, weight=1)
 
         # Frame Title
         self.title = customtkinter.CTkLabel(self, text="Laser Trap Wizard", font=customtkinter.CTkFont(size=15, weight="bold"))
@@ -196,53 +197,58 @@ class settings_frame(customtkinter.CTkFrame):
         self.dist_threshold_increase.grid(row=5, column=3, pady = (10,0), padx = (0, 15))
 
         # ROI Creation Title
-        self.roi_creation_title = customtkinter.CTkLabel(self, text = "ROI Creation", font = ("roboto", 14, "bold"))
+        self.roi_creation_title = customtkinter.CTkLabel(self, text = "Template Creation", font = ("roboto", 14, "bold"))
         self.roi_creation_title.grid(row=6, column=0, padx=(10,0), pady=(25,0), sticky="w")
 
-        # Manual ROI dimensions
-        self.manual_ROI_dim_label =  customtkinter.CTkLabel(self, text = "ROI dimensions", font = ("roboto", 12) )
+        # Template dimensions
+        self.manual_ROI_dim_label =  customtkinter.CTkLabel(self, text = "Template dimensions", font = ("roboto", 12) )
         self.manual_ROI_dim_label.grid(row=7, column =0, padx=(15, 0), pady=(10,0), sticky = "w")
         self.manual_ROI_dim_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(master, "manual_ROI_dim", self.manual_ROI_dim_display))
         self.manual_ROI_dim_decrease.grid(row=7, column=1, padx=(3,0), pady = (10,0))
         self.manual_ROI_dim_display = customtkinter.CTkLabel(self, text = f"{master.manual_ROI_dim}", fg_color="#212121", width = 70)
         self.manual_ROI_dim_display.grid(row=7, column = 2, pady= (10, 0), sticky = "we")
         self.manual_ROI_dim_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(master, "manual_ROI_dim", self.manual_ROI_dim_display))
-        self.manual_ROI_dim_increase.grid(row=7, column=3, pady = (10,0), padx = (0, 15))        
+        self.manual_ROI_dim_increase.grid(row=7, column=3, pady = (10,0), padx = (0, 15))
+
+        # Erode option
+        self.erode = customtkinter.CTkSwitch(self, text = "Erode", font = ("Roboto", 12), command = lambda : ff.erodeOption_callback(self))
+        self.erode.grid(row=8, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.erode.select()
 
         # Output Setttings Title
         self.output_setting_title = customtkinter.CTkLabel(self, text = "Ouputs to Save", font = ("roboto", 14, "bold"))
-        self.output_setting_title.grid(row=10, column=0, padx=(10, 0), pady=(25,0), sticky="w")
+        self.output_setting_title.grid(row=9, column=0, padx=(10, 0), pady=(25,0), sticky="w")
 
         # Plots
         self.savePlots = customtkinter.CTkSwitch(self, text = "Displacement Plots", font = ("Roboto", 12), command = lambda : ff.saveTemplates_callback(self))
-        self.savePlots.grid(row=11, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.savePlots.grid(row=10, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
         self.savePlots.select()
 
         # Annotated Videos
         self.annotated_videos = customtkinter.CTkSwitch(self, text = "Annotated Videos", font = ("Roboto", 12), command = lambda: ff.annotatedVideos_callback(self))
-        self.annotated_videos.grid(row=12, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.annotated_videos.grid(row=11, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
         self.annotated_videos.select()
 
         # Save Templates
         self.saveTemplates = customtkinter.CTkSwitch(self, text = "Templates", font = ("Roboto", 12), command = lambda : ff.saveTemplates_callback(self))
-        self.saveTemplates.grid(row=13, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.saveTemplates.grid(row=12, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
 
         # Save Analysis Frames
         self.saveAnalysisFrames = customtkinter.CTkSwitch(self, text = "Analysis Frames", font = ("Roboto", 12), command = lambda : ff.saveAnalysisFrames_callback(self))
-        self.saveAnalysisFrames.grid(row=14, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.saveAnalysisFrames.grid(row=13, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
 
         # Save CCORR
         self.saveCCORR = customtkinter.CTkSwitch(self, text = "CCORR Frames", font = ("Roboto", 12), command = lambda : ff.saveCCORR_callback(self))
-        self.saveCCORR.grid(row=15, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.saveCCORR.grid(row=14, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
 
         # Reset auto-bead detection parameters button
         self.reset_auto_detection_params = customtkinter.CTkButton(self, text = "Reset Settings", fg_color="#78716C", hover_color="#A8A29E", command = lambda: ff.reset_settings(self))
-        self.reset_auto_detection_params.grid(row=16, column = 0, columnspan = 4, pady = (20,10))
+        self.reset_auto_detection_params.grid(row=15, column = 0, columnspan = 4, pady = (20,10))
 
         # Watermark
         self.watermark = customtkinter.CTkLabel(self, text = "Made by Matheus Schultz", font = ("roboto", 11))
         self.watermark.bind("<Button-1>", lambda event: ff.watermark_callback("http://www.matheusschultz.com"))
-        self.watermark.grid(row=17, column=0)
+        self.watermark.grid(row=16, column=0)
 
 class video_analysis_frame(customtkinter.CTkFrame):
 

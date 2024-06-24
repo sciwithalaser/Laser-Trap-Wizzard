@@ -36,7 +36,7 @@ class MainApp(customtkinter.CTk):
         self.dist_threshold = 2
         self.manual_ROI_dim = 19
         self.annotated_videos = True
-        self.saveTemplates = False
+        self.saveTemplates = True
         self.saveCCORR = False
         self.saveAnalysisFrames = False
         self.savePlots = True
@@ -232,6 +232,7 @@ class settings_frame(customtkinter.CTkFrame):
         # Save Templates
         self.saveTemplates = customtkinter.CTkSwitch(self, text = "Templates", font = ("Roboto", 12), command = lambda : ff.saveTemplates_callback(self))
         self.saveTemplates.grid(row=12, column=0, columnspan = 4, padx=(15,0), pady=(10,0), sticky = "we")
+        self.annotated_videos.select()
 
         # Save Analysis Frames
         self.saveAnalysisFrames = customtkinter.CTkSwitch(self, text = "Analysis Frames", font = ("Roboto", 12), command = lambda : ff.saveAnalysisFrames_callback(self))

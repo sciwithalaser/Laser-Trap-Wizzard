@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import csv
 from scipy.interpolate import griddata
 import os
+import time
 
 def make_templates(frame, roi_coordinates, extend, erode):
 
@@ -115,6 +116,7 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
     - Optionally saves displacement plots as image files.
     - The progress of the analysis is tracked and updated in the `progress_info` dictionary.
     """
+    start_time = time.time()
         
     # Analysis Parameters
     CCORR_THRESHOLD = ccorr_thresh              # Minimum CCORR correlation threshold 
@@ -376,6 +378,9 @@ def analyze_video(progress_info, video_directory, templates, matching_areas, ROI
         for i,template in enumerate(templates):
             templatePath = output_path + "/" + file_name_without_extension + f"-Template_{i+1}.jpg"
             cv2.imwrite(templatePath, template)
+    
+    elapsed_time = time.time() - start_time
+    print(f"The analysis of video {file_name_without_extension} took exactly {elapsed_time:.2f} seconds")
 
 def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMatchLoc, template, matching_area, ccorr_threshold, dist_threshold, ccorr_out = None, analFrame_out = None, erode = True):
 

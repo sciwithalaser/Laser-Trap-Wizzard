@@ -529,7 +529,7 @@ def template_matching(progress_info, frame, analysisFrameNumber, cap, previousMa
             # Process next frame
             next_frame = process_image(frame, erode)
             next_frame = np.array(next_frame, dtype=template.dtype)
-            
+
             # Sum next frame to summator and update summedFrames.
             summator = summator + next_frame
             summedFrames += 1

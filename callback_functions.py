@@ -1,3 +1,4 @@
+import config as cf
 import customtkinter
 from tkinter import filedialog, messagebox
 from PIL import Image
@@ -11,14 +12,14 @@ import os
 
 def fineAdjust(caller, com = "None", stepSize = 1, dimStepSize = 1):
 
-        if caller.video_loaded:
+        if cf.video_anal["video_loaded"]:
 
-            if caller.selected_ROI is not None:
+            if cf.video_anal["selected_ROI"]:
 
-                video_directory = caller.video_directories[caller.current_video_index]
+                video_directory = cf.video_anal["video_directories"][cf.video_anal["current_video_index"]]
 
                 # Extract the X- coordinate of the selected ROI
-                roi_row, roi_column, w, h, =  caller.selected_ROI
+                roi_row, roi_column, w, h, =  cf.video_anal["selected_ROI"]
 
                 # Adjust coordiante according to step size and received command
                 if com == "down":
@@ -41,9 +42,9 @@ def fineAdjust(caller, com = "None", stepSize = 1, dimStepSize = 1):
                     updated_ROI = (roi_row, roi_column, new_dimension, new_dimension)
 
                 # Find selected ROI index in displayed ROIs list.
-                index = caller.rois[video_directory].index(caller.selected_ROI)
-                caller.rois[video_directory][index] = updated_ROI   
-                caller.selected_ROI = updated_ROI
+                index = cf.video_anal["rois"][video_directory].index(cf.video_anal["selected_ROI"])
+                cf.video_anal["rois"][video_directory][index] = updated_ROI   
+                cf.video_anal["selected_ROI"] = updated_ROI
 
                 # Display new frame with ROI
                 update_displayed_frame(caller)
@@ -53,32 +54,32 @@ def fineAdjust(caller, com = "None", stepSize = 1, dimStepSize = 1):
 def select_videos(caller, progress_info):       
 
     # Prompt the user for videos and save their directories in global variable
-    caller.video_directories = filedialog.askopenfilenames(filetypes=[("Video files", "*.mp4;*.avi")])
-    caller.video_loaded.clear()
-    caller.selected_ROI = None
+    cf.video_anal["video_directories"] = filedialog.askopenfilenames(filetypes=[("Video files", "*.mp4;*.avi")])
+    cf.video_anal["video_loaded"].clear()
+    cf.video_anal["selected_ROI"] = None
     
-    if caller.video_directories:
+    if cf.video_anal["video_directories"]:
         
-        caller.rois = {video_dir: [] for video_dir in caller.video_directories}
+        cf.video_anal["rois"] = {video_dir: [] for video_dir in cf.video_anal["video_directories"]}
         
         # Load the first video in the video_directories list
-        caller.current_video_index = 0
+        cf.video_anal["current_video_index"] = 0
         load_video(caller, progress_info)
     
 def load_video(caller, progress_info):
 
     # Extract directory of video that is being loaded
-    video_directory = caller.video_directories[caller.current_video_index]
+    video_directory = cf.video_anal['video_directories'][cf.video_anal['current_video_index']]
 
     # Verify if the video was loaded before
-    if video_directory not in caller.video_loaded:
+    if video_directory not in cf.video_anal['video_loaded']:
 
         # If the video was not laoded before, update video_loaded status for the video being loaded.
-        caller.video_loaded[video_directory] = True
+        cf.video_anal['video_loaded'][video_directory] = True
             
     # Opens video being loaded and read the first frame
     cap = cv2.VideoCapture(video_directory)
-    ret, caller.frame = cap.read()
+    ret, cf.video_anal['frame'] = cap.read()
 
     if ret:
         # Display frame with highlighted ROIs
@@ -95,12 +96,12 @@ def load_video(caller, progress_info):
         feedback = f"Unable to read the first frame when preparing templates"
 
         # Remove the video that could not be read element
-        temp_list = list(caller.video_directories) # Transform tuple temporarily into a list to do thre removal (can't do it directly on a tuple)
-        temp_list.pop(caller.current_video_index)
-        caller.video_directories = tuple(temp_list)
+        temp_list = list(cf.video_anal['video_directories']) # Transform tuple temporarily into a list to do thre removal (can't do it directly on a tuple)
+        temp_list.pop(cf.video_anal['current_video_index'])
+        cf.video_anal['video_directories'] = tuple(temp_list)
 
         # Remove ROI holder from the video that could not be read
-        _ = caller.rois.pop(video_directory)
+        _ = cf.video_anal['rois'].pop(video_directory)
 
         # Output an error to the current video analysis folder.
         file_name_without_extension = os.path.splitext(os.path.basename(video_directory))[0]
@@ -111,8 +112,8 @@ def load_video(caller, progress_info):
         with open(error_log_path, 'a') as log_file:
             log_file.write(feedback)
 
-        while caller.current_video_index > len(caller.rois) - 1:
-            caller.current_video_index -= 1
+        while cf.video_anal['current_video_index'] > len(cf.video_anal['rois']) - 1:
+            cf.video_anal['current_video_index'] -= 1
 
         # Read the next video instead
         load_video(caller, progress_info)
@@ -120,24 +121,24 @@ def load_video(caller, progress_info):
 def update_displayed_frame(caller):
 
     # Extract directory of video currently loaded
-    video_directory = caller.video_directories[caller.current_video_index]
+    video_directory = cf.video_anal['video_directories'][cf.video_anal['current_video_index']]
 
     # Copy original frame to display ROIs
-    frame = caller.frame.copy()
+    frame = cf.video_anal['frame'].copy()
 
-    if len(caller.rois[video_directory]) == 2:
+    if len(cf.video_anal['rois'][video_directory]) == 2:
         
         # Extract templates based on selected ROIs
-        templates, matching_areas, rightMost_ROI = ba.make_templates(frame, caller.rois[video_directory], caller.master.extend, caller.master.erode)
-        caller.templates[video_directory] = templates
-        caller.matching_areas[video_directory] = matching_areas
-        caller.rightMostROIs[video_directory] = rightMost_ROI
+        templates, matching_areas, rightMost_ROI = ba.make_templates(frame, cf.video_anal['rois'][video_directory], cf.params['extend'], cf.params['erode'])
+        cf.video_anal['templates'][video_directory] = templates
+        cf.video_anal['matching_areas'][video_directory] = matching_areas
+        cf.video_anal['rightMostROIs'][video_directory] = rightMost_ROI
 
         # Process templates for display        
         for i, template in enumerate(templates):
 
             pil_template = Image.fromarray(template)
-            tk_template = customtkinter.CTkImage(pil_template, size = (caller.template_display_size, caller.template_display_size))
+            tk_template = customtkinter.CTkImage(pil_template, size = (cf.video_anal['template_display_size'], cf.video_anal['template_display_size']))
             
             if i == rightMost_ROI:
                 caller.template_display_right.configure(image = tk_template, text="", fg_color = "transparent")
@@ -152,20 +153,20 @@ def update_displayed_frame(caller):
         tk_black = customtkinter.CTkImage(pil_black, size = (caller.template_display_size, caller.template_display_size))
         
         # If a single ROI is selected, display the template in one of the template displays
-        if len(caller.rois[video_directory]) == 1:
+        if len(cf.video_anal['rois'][video_directory]) == 1:
 
-            templates, matching_areas, rightMost_ROI = ba.make_templates(frame, caller.rois[video_directory], caller.master.extend, caller.master.erode)
-            caller.templates[video_directory] = templates
-            caller.matching_areas[video_directory] = matching_areas
-            caller.rightMostROIs[video_directory] = rightMost_ROI
+            templates, matching_areas, rightMost_ROI = ba.make_templates(frame, cf.video_anal['rois'][video_directory], cf.params['extend'], cf.params['erode'])
+            cf.video_anal['templates'][video_directory] = templates
+            cf.video_anal['matching_areas'][video_directory] = matching_areas
+            cf.video_anal['rightMostROIs'][video_directory] = rightMost_ROI
 
             pil_template = Image.fromarray(templates[0])
-            tk_template = customtkinter.CTkImage(pil_template, size = (caller.template_display_size, caller.template_display_size))
+            tk_template = customtkinter.CTkImage(pil_template, size = (cf.video_anal['template_display_size'], cf.video_anal['template_display_size']))
             caller.template_display_left.configure(image = tk_template, text="", fg_color = "transparent")
             caller.template_display_right.configure(image = tk_black, text="Right-most ROI shows up here", fg_color = "black")
 
         # If no ROIs are selected, display message asking for at least one ROI
-        elif len(caller.rois[video_directory]) < 1:
+        elif len(cf.video_anal['rois'][video_directory]) < 1:
 
             caller.template_display_left.configure(image = tk_black, text = "Please select at least 1 ROI")
             caller.template_display_right.configure(image = tk_black, text = "Please select at least 1 ROI")
@@ -176,7 +177,7 @@ def update_displayed_frame(caller):
             caller.template_display_right.configure(image = tk_black, text = "Please select at most 2 ROIs")
 
     # Draw Rectangles on first frame to indicate the ROIs
-    for roi in caller.rois[video_directory]:
+    for roi in cf.video_anal['rois'][video_directory]:
 
         # Unpack ROI coordinates and shape
         row, column, w, h = roi
@@ -196,13 +197,13 @@ def update_displayed_frame(caller):
 def mouse_left_click(caller, event, manual_ROI_dimensions = 23):
     
     # The function only runs if a video has been loaded.
-    if caller.video_loaded:
+    if cf.video_anal['video_loaded']:
 
         # Extracts video directory of the video currently loaded
-        video_directory = caller.video_directories[caller.current_video_index]
+        video_directory = cf.video_anal['video_directories'][cf.video_anal['current_video_index']]
 
         insideROIs = []
-        for roi in caller.rois[video_directory]:
+        for roi in cf.video_anal['rois'][video_directory]:
 
             # Unpack ROI coordinates and shape
             row, column, w, h = roi
@@ -210,14 +211,14 @@ def mouse_left_click(caller, event, manual_ROI_dimensions = 23):
             # Check each ROI for if the user clicked inside of it
             if column < event.x < column + w and row < event.y < row + h:
                 insideROIs.append(1)
-                caller.selected_ROI = roi
+                cf.video_anal['selected_ROI'] = roi
             else:
                 insideROIs.append(0)
         
         # If click was outside of any ROI, create new ROI centered around the click
         if 1 not in insideROIs:
 
-            caller.selected_ROI = None
+            cf.video_anal['selected_ROI'] = None
 
             # Calculate ROI coordinates (uper-left corner of the ROI)
             # Notice that the first dimensions of imaging processing (x, y) is opposite to the dimension of array operations (y,x) 
@@ -225,7 +226,7 @@ def mouse_left_click(caller, event, manual_ROI_dimensions = 23):
             roi_column = max(0, event.x - manual_ROI_dimensions // 2) # COLUMN
 
             # Add new ROI to displayed ROI list.
-            caller.rois[video_directory].append((roi_row, roi_column, manual_ROI_dimensions, manual_ROI_dimensions))
+            cf.video_anal['rois'][video_directory].append((roi_row, roi_column, manual_ROI_dimensions, manual_ROI_dimensions))
 
         # Display new frame with ROI
         update_displayed_frame(caller)
@@ -233,13 +234,13 @@ def mouse_left_click(caller, event, manual_ROI_dimensions = 23):
 def mouse_right_click(caller, event):
 
     # The function only runs if a video has been loaded.
-    if caller.video_loaded:
+    if cf.video_anal['video_loaded']:
 
         # Extracts video directory of the video currently loaded
-        video_directory = caller.video_directories[caller.current_video_index]
+        video_directory = cf.video_anal['video_directories'][cf.video_anal['current_video_index']]
 
         # Verify if left click was inside of an ROI
-        for roi in caller.rois[video_directory]:
+        for roi in cf.video_anal['rois'][video_directory]:
 
             # Unpack ROI coordinates and shape
             roi_row, roi_column, w, h = roi
@@ -248,7 +249,7 @@ def mouse_right_click(caller, event):
             if roi_column < event.x < roi_column + w and roi_row < event.y < roi_row + h:
                 
                 # If the mouse click happened inside ROI, delete the ROI
-                caller.rois[video_directory].remove(roi)
+                cf.video_anal['rois'][video_directory].remove(roi)
                 
                 break # Break loop once clicked ROI is found
     
@@ -258,64 +259,64 @@ def mouse_right_click(caller, event):
 def check_buttons_state(caller):
 
     # Configure Previous Video Button
-    if caller.current_video_index == 0:
+    if cf.video_anal['current_video_index'] == 0:
         caller.previous_button.configure(state="disabled")
     else:
         caller.previous_button.configure(state="normal")
 
     # Configure Next Video Button
-    if caller.current_video_index == len(caller.video_directories) - 1:
+    if cf.video_anal['current_video_index'] == len(cf.video_anal['video_directories']) - 1:
         caller.next_button.configure(state="disabled")
     else:
         caller.next_button.configure(state="normal")
 
     # MATCHING EXTEND REGION NAVIGATION
-    if caller.master.extend > 0 and caller.master.extend < 20:
+    if cf.params['extend'] > 0 and cf.params['extend'] < 20:
         caller.master.settings.matching_region_extend_decrease.configure(state="normal")
         caller.master.settings.matching_region_extend_increase.configure(state="normal")
-    if caller.master.extend == 0:
+    if cf.params['extend'] == 0:
         caller.master.settings.matching_region_extend_decrease.configure(state="disabled")
         caller.master.settings.matching_region_extend_increase.configure(state="normal")
-    if caller.master.extend == 20:
+    if cf.params['extend'] == 20:
         caller.master.settings.matching_region_extend_decrease.configure(state="normal")
         caller.master.settings.matching_region_extend_increase.configure(state="disabled")
     
     # CCORR THRESHOLD SETTING
-    if caller.master.ccorr_threshold > 0 and caller.master.ccorr_threshold < 1:
+    if cf.params['ccorr_threshold'] > 0 and cf.params['ccorr_threshold'] < 1:
         caller.master.settings.ccorr_threshold_decrease.configure(state="normal")
         caller.master.settings.ccorr_threshold_increase.configure(state="normal")
-    if caller.master.ccorr_threshold == 0:
+    if cf.params['ccorr_threshold'] == 0:
         caller.master.settings.ccorr_threshold_decrease.configure(state="disabled")
         caller.master.settings.ccorr_threshold_increase.configure(state="normal")
-    if caller.master.ccorr_threshold == 1:
+    if cf.params['ccorr_threshold'] == 1:
         caller.master.settings.ccorr_threshold_decrease.configure(state="normal")
         caller.master.settings.ccorr_threshold_increase.configure(state="disabled")
     
     # DIST THRESHOLD
-    if caller.master.dist_threshold > 1 and caller.master.dist_threshold < caller.master.extend:
+    if cf.params['dist_threshold'] > 1 and cf.params['dist_threshold'] < cf.params['extend']:
         caller.master.settings.dist_threshold_decrease.configure(state="normal")
         caller.master.settings.dist_threshold_increase.configure(state="normal")
-    if caller.master.dist_threshold == 1:
+    if cf.params['dist_threshold'] == 1:
         caller.master.settings.dist_threshold_decrease.configure(state="disabled")
         caller.master.settings.dist_threshold_increase.configure(state="normal")
-    if caller.master.dist_threshold == caller.master.extend:
+    if cf.params['dist_threshold'] == caller.master.extend:
         caller.master.settings.dist_threshold_decrease.configure(state="normal")
         caller.master.settings.dist_threshold_increase.configure(state="disabled")
     
     # ROI DIMENSION SETTING
-    if caller.master.manual_ROI_dim > 1:
+    if cf.params['manual_ROI_dim'] > 1:
         caller.master.settings.manual_ROI_dim_decrease.configure(state="normal")
         caller.master.settings.manual_ROI_dim_increase.configure(state="normal")
-    if caller.master.manual_ROI_dim == 1:
+    if cf.params['manual_ROI_dim'] == 1:
         caller.master.settings.manual_ROI_dim_decrease.configure(state="disabled")
         
 def next_video(caller, progress_info):
 
     # Increases current_video_index by one if not the last video
-    if caller.current_video_index < len(caller.video_directories) - 1:
-        caller.current_video_index += 1
+    if cf.video_anal['current_video_index'] < len(cf.video_anal['video_directories']) - 1:
+        cf.video_anal['current_video_index'] += 1
 
-        caller.selected_ROI = None
+        cf.video_anal['selected_ROI'] = None
 
         # Load video with the new current_video_index
         load_video(caller, progress_info)
@@ -323,10 +324,10 @@ def next_video(caller, progress_info):
 def previous_video(caller, progress_info):
 
     # Increases current_video_index by one if not the last video
-    if caller.current_video_index > 0:
-        caller.current_video_index -= 1
+    if cf.video_anal['current_video_index'] > 0:
+        cf.video_anal['current_video_index'] -= 1
 
-        caller.selected_ROI = None
+        cf.video_anal['selected_ROI'] = None
 
         # Load video with the new current_video_index
         load_video(caller, progress_info)

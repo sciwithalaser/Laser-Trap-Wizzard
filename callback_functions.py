@@ -332,28 +332,30 @@ def previous_video(caller, progress_info):
         # Load video with the new current_video_index
         load_video(caller, progress_info)
 
-def increaseButton_callback(master, parameter_name, display):
+def increaseButton_callback(caller, parameter_name, display):
     
     if parameter_name == "ccorr_threshold":
-        setattr(master, parameter_name, getattr(master, parameter_name) + 0.1)
-        display.configure(text=f"{getattr(master, parameter_name):.1f}")
+        cf.params[parameter_name] = cf.params[parameter_name] + 0.1
+        display.configure(text=f"{cf.params[parameter_name]:.1f}")
 
     else:
-        setattr(master, parameter_name, getattr(master, parameter_name) + 1)
-        display.configure(text=f"{getattr(master, parameter_name)}")
+        cf.params[parameter_name] = cf.params[parameter_name] + 1
+        display.configure(text=f"{cf.params[parameter_name]}")
 
-    check_buttons_state(master.video_analysis_frame)
+    check_buttons_state(caller.master.video_analysis_frame)
 
-def decreaseButton_callback(master, parameter_name, display):
+def decreaseButton_callback(self, parameter_name, display):
 
     if parameter_name == "ccorr_threshold":
-        setattr(master, parameter_name, getattr(master, parameter_name) - 0.1)
-        display.configure(text=f"{getattr(master, parameter_name):.1f}")
-    else:    
-        setattr(master, parameter_name, getattr(master, parameter_name) - 1)
-        display.configure(text=f"{getattr(master, parameter_name)}")
+        cf.params[parameter_name] = cf.params[parameter_name] - 0.1
+        display.configure(text=f"{cf.params[parameter_name]:.1f}")
 
-    check_buttons_state(master.video_analysis_frame)
+    else:    
+        cf.params[parameter_name] = cf.params[parameter_name] - 1
+        display.configure(text=f"{cf.params[parameter_name]}")
+
+
+    check_buttons_state(self.master.video_analysis_frame)
 
 def watermark_callback(url):
 
@@ -362,13 +364,13 @@ def watermark_callback(url):
 def template_selection(caller, event, templateLabel):
     
     # The function only runs if a video has been loaded.
-    if caller.video_loaded:
+    if len(cf.video_anal['video_loaded']) > 0:
 
         # Extracts video directory of the video currently loaded
-        video_directory = caller.video_directories[caller.current_video_index]
+        video_directory = cf.video_anal['video_directories'][cf.video_anal['current_video_index']]
 
         max_column_coordinate = 0
-        for i,roi in enumerate(caller.rois[video_directory]):
+        for i,roi in enumerate(cf.video_anal["rois"][video_directory]):
             
             # Unpack ROI coordinates
             _,roi_column,_,_ = roi
@@ -378,11 +380,11 @@ def template_selection(caller, event, templateLabel):
                 max_column_coordinate = roi_column
                 rightMost_ROI = i
             
-        for roi in caller.rois[video_directory]:
-            if roi == caller.rois[video_directory][rightMost_ROI] and templateLabel == "right":
-                caller.selected_ROI = roi
-            elif roi != caller.rois[video_directory][rightMost_ROI] and templateLabel == "left":
-                caller.selected_ROI = roi
+        for roi in cf.video_anal["rois"][video_directory]:
+            if roi == cf.video_anal["rois"][video_directory][rightMost_ROI] and templateLabel == "right":
+                cf.video_anal["selected_ROI"] = roi
+            elif roi != cf.video_anal["rois"][video_directory][rightMost_ROI] and templateLabel == "left":
+                cf.video_anal["selected_ROI"] = roi
 
         # Display new frame with ROI
         update_displayed_frame(caller)
@@ -393,7 +395,7 @@ def analyzis_button_callback(caller, progress_info):
     if progress_info["Analyzing"] == False:
 
         # First, verify if any videos were loaded.
-        if not caller.video_analysis_frame.video_directories:
+        if len (cf.video_anal["video_directories"]) == 0:
             messagebox.showwarning(title = "WARNING", message="Please load at least one video for analysis")
             return
 
@@ -402,7 +404,7 @@ def analyzis_button_callback(caller, progress_info):
         any_error = False
 
         # Verify if correct number of ROIs is selected for each loaded video
-        for index, rois in enumerate(caller.video_analysis_frame.rois.values()):
+        for index, rois in enumerate(cf.video_anal["rois"].values()):
             
             current_video_number = index + 1
             # Verify if at least one ROI is selected
@@ -433,19 +435,19 @@ def analyzis_button_callback(caller, progress_info):
             caller.update_gui()
 
             # copy immutable and deepCopy mutable data to pass into new thread for video analysis
-            video_directories = caller.video_analysis_frame.video_directories # List
-            templates = copy.deepcopy(caller.video_analysis_frame.templates) # Dictionary
-            matching_areas = copy.deepcopy(caller.video_analysis_frame.matching_areas) # Dictionary
-            roi_coordinates = copy.deepcopy(caller.video_analysis_frame.rois) # Dictionary
-            rightMostROIs = copy.deepcopy(caller.video_analysis_frame.rightMostROIs) # Dictionary
-            annotatedVideos = caller.annotated_videos
-            saveTemplates = caller.saveTemplates
-            saveCCORR = caller.saveCCORR
-            saveAnalysisFrames = caller.saveAnalysisFrames
-            savePlots =  caller.savePlots
-            ccorr_thresh = caller.ccorr_threshold
-            dist_thresh = caller.dist_threshold
-            erode = caller.erode
+            video_directories = cf.video_anal["video_directories"] # List
+            templates = copy.deepcopy(cf.video_anal["templates"]) # Dictionary
+            matching_areas = copy.deepcopy(cf.video_anal["matching_areas"]) # Dictionary
+            roi_coordinates = copy.deepcopy(cf.video_anal["rois"]) # Dictionary
+            rightMostROIs = copy.deepcopy(cf.video_anal["rightMostROIs"]) # Dictionary
+            annotatedVideos = cf.params["annotated_videos"]
+            saveTemplates = cf.params["saveTemplates"]
+            saveCCORR = cf.params["saveCCORR"]
+            saveAnalysisFrames = cf.params["saveAnalysisFrames"]
+            savePlots =  cf.params["savePlots"]
+            ccorr_thresh = cf.params["ccorr_threshold"]
+            dist_thresh = cf.params["dist_threshold"]
+            erode = cf.params["erode"]
 
             # Start analysis on a separate thread so that GUI can continue being updated
             analysis_thread = threading.Thread(target=analyze, args=(video_directories, templates, matching_areas, roi_coordinates, rightMostROIs, annotatedVideos, saveTemplates, saveCCORR, saveAnalysisFrames, savePlots, ccorr_thresh, dist_thresh, progress_info, erode))
@@ -504,23 +506,23 @@ def analyze(video_directories, templates, mathcing_areas, roi_coordinates, right
 def annotatedVideos_callback(caller):
 
     if caller.annotated_videos.get() ==1 :
-        caller.master.annotated_videos = True
+        cf.params["annotated_videos"] = True
     else:
-        caller.master.annotated_videos = False
+        cf.params['annotated_videos'] = False
 
 def saveTemplates_callback(caller):
 
     if caller.saveTemplates.get() == 1:
-        caller.master.saveTemplates = True
+        cf.params["saveTemplates"] = True
     else:
-        caller.master.saveTemplates = False
+        cf.params["saveTemplates"] = False
 
 def erodeOption_callback(caller):
 
     if caller.erode.get() == 1:
-        caller.master.erode = True
+        cf.params["erode"] = True
     else:
-        caller.master.erode = False
+        cf.params["erode"] = False
 
     update_displayed_frame(caller.master.video_analysis_frame)
 
@@ -528,27 +530,27 @@ def erodeOption_callback(caller):
 def saveCCORR_callback(caller):
 
     if caller.saveTemplates.get() == 1:
-        caller.master.saveCCORR = True
+        cf.params["saveCCORR"] = True
     else:
-        caller.master.saveCCORR = False
+        cf.params["saveCCORR"] = False
 
 def saveAnalysisFrames_callback(caller):
 
     if caller.saveTemplates.get() == 1:
-        caller.master.saveAnalysisFrames = True
+        cf.params["saveAnalysisFrames"] = True
     else:
-        caller.master.saveAnalysisFrames = False
+        cf.params["saveAnalysisFrames"] = False
 
 def reset_settings(caller):
 
     # Reset all parameters to default values
-    caller.master.extend = 10
-    caller.master.ccorr_threshold = 0.4
-    caller.master.dist_threshold = 2
-    caller.master.manual_ROI_dim = 23
-    caller.master.autoTemplate = True
-    caller.master.annotated_videos = True
-    caller.master.saveTemplates = False
+    cf.params["extend"] = 10
+    cf.params["ccorr_threshold"] = 0.4
+    cf.params["dist_threshold"] = 2
+    cf.params["manual_ROI_dim"] = 23
+    cf.params["autoTemplate"] = True
+    cf.params["annotated_videos"] = True
+    cf.params["saveTemplates"] = False
 
     # Reset all diplays
     caller.matching_region_extend_display.configure(text=f"{caller.master.extend}")

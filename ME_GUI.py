@@ -132,31 +132,31 @@ class settings_frame(customtkinter.CTkFrame):
         # Matching Region Extend = INT defining how many pixels larger is the matching region  (in ba.template_matching)
         self.matching_region_extend_label =  customtkinter.CTkLabel(self, text = "Match Region Extend", font = ("roboto", 12) )
         self.matching_region_extend_label.grid(row=3, column =0, padx=(15, 0), pady=(10,0), sticky = "w")
-        self.matching_region_extend_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(master, "extend", self.matching_region_extend_display))
+        self.matching_region_extend_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(self, "extend", self.matching_region_extend_display))
         self.matching_region_extend_decrease.grid(row=3, column=1, padx=(3,0), pady = (10,0))
         self.matching_region_extend_display = customtkinter.CTkLabel(self, text = f"{cf.params['extend']}", fg_color="#212121", width = 70)
         self.matching_region_extend_display.grid(row=3, column = 2, pady= (10, 0),sticky = "we")
-        self.matching_region_extend_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(master, "extend", self.matching_region_extend_display))
+        self.matching_region_extend_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(self, "extend", self.matching_region_extend_display))
         self.matching_region_extend_increase.grid(row=3, column=3, pady = (10,0), padx = (0, 15))
 
         # CCORR Threshold = Float defining the threshold cross-correlation value to consider the object as "found"
         self.ccorr_threshold_label =  customtkinter.CTkLabel(self, text = "CCORR Threshold", font = ("roboto", 12) )
         self.ccorr_threshold_label.grid(row=4, column =0, padx=(15, 0), pady=(10,0), sticky = "w")
-        self.ccorr_threshold_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(master, "ccorr_threshold", self.cccorr_threshold_display))
+        self.ccorr_threshold_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(self, "ccorr_threshold", self.cccorr_threshold_display))
         self.ccorr_threshold_decrease.grid(row=4, column=1, padx=(3,0), pady = (10,0))
         self.cccorr_threshold_display = customtkinter.CTkLabel(self, text = f"{cf.params['ccorr_threshold']}", fg_color="#212121", width = 70)
         self.cccorr_threshold_display.grid(row=4, column = 2, pady= (10, 0),sticky = "we")
-        self.ccorr_threshold_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(master, "ccorr_threshold", self.cccorr_threshold_display))
+        self.ccorr_threshold_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(self, "ccorr_threshold", self.cccorr_threshold_display))
         self.ccorr_threshold_increase.grid(row=4, column=3, pady = (10,0), padx = (0, 15))
 
         # DISTANCE Threshold = Float defining the threshold distance value to consider the object as "found"
         self.dist_threshold_label =  customtkinter.CTkLabel(self, text = "Distance Threshold", font = ("roboto", 12))
         self.dist_threshold_label.grid(row=5, column =0, padx=(15, 0), pady=(10,0), sticky = "w")
-        self.dist_threshold_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(master, "dist_threshold", self.dist_threshold_display))
+        self.dist_threshold_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(self, "dist_threshold", self.dist_threshold_display))
         self.dist_threshold_decrease.grid(row=5, column=1, padx=(3,0), pady = (10,0))
         self.dist_threshold_display = customtkinter.CTkLabel(self, text = f"{cf.params['dist_threshold']}", fg_color="#212121", width = 70)
         self.dist_threshold_display.grid(row=5, column = 2, pady= (10, 0),sticky = "we")
-        self.dist_threshold_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(master, "dist_threshold", self.dist_threshold_display))
+        self.dist_threshold_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(self, "dist_threshold", self.dist_threshold_display))
         self.dist_threshold_increase.grid(row=5, column=3, pady = (10,0), padx = (0, 15))
 
         # ROI Creation Title
@@ -166,11 +166,11 @@ class settings_frame(customtkinter.CTkFrame):
         # Template dimensions
         self.manual_ROI_dim_label =  customtkinter.CTkLabel(self, text = "Template dimensions", font = ("roboto", 12) )
         self.manual_ROI_dim_label.grid(row=7, column =0, padx=(15, 0), pady=(10,0), sticky = "w")
-        self.manual_ROI_dim_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(master, "manual_ROI_dim", self.manual_ROI_dim_display))
+        self.manual_ROI_dim_decrease = customtkinter.CTkButton(self, text = "-", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.decreaseButton_callback(self, "manual_ROI_dim", self.manual_ROI_dim_display))
         self.manual_ROI_dim_decrease.grid(row=7, column=1, padx=(3,0), pady = (10,0))
         self.manual_ROI_dim_display = customtkinter.CTkLabel(self, text = f"{cf.params['manual_ROI_dim']}", fg_color="#212121", width = 70)
         self.manual_ROI_dim_display.grid(row=7, column = 2, pady= (10, 0), sticky = "we")
-        self.manual_ROI_dim_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(master, "manual_ROI_dim", self.manual_ROI_dim_display))
+        self.manual_ROI_dim_increase = customtkinter.CTkButton(self, text = "+", fg_color="#78716C", hover_color="#A8A29E", width = 10, command = lambda: ff.increaseButton_callback(self, "manual_ROI_dim", self.manual_ROI_dim_display))
         self.manual_ROI_dim_increase.grid(row=7, column=3, pady = (10,0), padx = (0, 15))
 
         # Erode option
